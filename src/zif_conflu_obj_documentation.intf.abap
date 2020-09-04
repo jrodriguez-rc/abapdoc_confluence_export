@@ -20,19 +20,36 @@ INTERFACE zif_conflu_obj_documentation
 
   TYPES:
     BEGIN OF ts_page_info,
-      id     TYPE i,
-      type   TYPE string,
-      status TYPE string,
-      title  TYPE string,
-      url    TYPE string,
+      id      TYPE i,
+      type    TYPE string,
+      status  TYPE string,
+      title   TYPE string,
+      version TYPE i,
+      url     TYPE string,
     END OF ts_page_info,
     tt_page_info TYPE SORTED TABLE OF ts_page_info WITH UNIQUE KEY id.
+
+  TYPES:
+    BEGIN OF ts_documentation_level,
+      level           TYPE i,
+      name            TYPE string,
+      default_content TYPE string,
+      page_info       TYPE zif_conflu_obj_documentation=>ts_page_info,
+    END OF ts_documentation_level,
+    tt_documentation_level TYPE SORTED TABLE OF ts_documentation_level WITH UNIQUE KEY level.
+
+  TYPES:
+    BEGIN OF ts_label,
+      name TYPE string,
+    END OF ts_label,
+    tt_labels TYPE STANDARD TABLE OF ts_label WITH DEFAULT KEY.
 
   METHODS get_space_info
     RETURNING
       VALUE(information) TYPE zif_conflu_obj_documentation=>ts_space_info
     RAISING
-      zcx_conflu_export.
+      zcx_conflu_docu
+      zcx_conflu_rest.
 
   METHODS get_page_info
     IMPORTING
@@ -41,12 +58,24 @@ INTERFACE zif_conflu_obj_documentation
     RETURNING
       VALUE(information) TYPE zif_conflu_obj_documentation=>ts_page_info
     RAISING
-      zcx_conflu_export.
+      zcx_conflu_docu
+      zcx_conflu_rest.
+
+  METHODS get_documentation_levels
+    IMPORTING
+      object_type   TYPE string
+    RETURNING
+      VALUE(levels) TYPE zif_conflu_obj_documentation=>tt_documentation_level
+    RAISING
+      zcx_conflu_docu
+      zcx_conflu_rest.
 
   METHODS export
     IMPORTING
       filter TYPE zif_conflu_obj_documentation=>tt_filter OPTIONAL
     RAISING
-      zcx_conflu_export.
+      zcx_conflu_export
+      zcx_conflu_docu
+      zcx_conflu_rest.
 
 ENDINTERFACE.

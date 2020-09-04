@@ -1,7 +1,6 @@
 "! <p class="shorttext synchronized" lang="en">Export Objects documentation</p>
 CLASS zcl_conflu_obj_documentation DEFINITION
   PUBLIC
-  FINAL
   CREATE PUBLIC .
 
   PUBLIC SECTION.
@@ -16,6 +15,11 @@ CLASS zcl_conflu_obj_documentation DEFINITION
       RAISING
         zcx_conflu.
 
+    "! <p class="shorttext synchronized" lang="en">CONSTRUCTOR</p>
+    "!
+    "! @parameter space_key | <p class="shorttext synchronized" lang="en">Confluence space key</p>
+    "! @parameter package | <p class="shorttext synchronized" lang="en">Package</p>
+    "! @raising zcx_conflu | <p class="shorttext synchronized" lang="en">Confluence exception</p>
     METHODS constructor
       IMPORTING
         space_key TYPE string
@@ -24,15 +28,42 @@ CLASS zcl_conflu_obj_documentation DEFINITION
         zcx_conflu.
 
   PROTECTED SECTION.
+    TYPES:
+      BEGIN OF ts_status_response,
+        status_code TYPE i,
+        BEGIN OF data,
+          authorized                TYPE abap_bool,
+          valid                     TYPE abap_bool,
+          allowed_in_read_only_mode TYPE abap_bool,
+          successful                TYPE abap_bool,
+        END OF data,
+        message     TYPE string,
+        reason      TYPE string,
+      END OF ts_status_response.
+
     METHODS get_auth_token
       RETURNING
         VALUE(token) TYPE string.
+
+    METHODS get_documentation_object FINAL
+      IMPORTING
+        object_type   TYPE trobjtype
+      RETURNING
+        VALUE(object) TYPE REF TO zif_conflu_obj
+      RAISING
+        cx_sy_itab_line_not_found.
 
     METHODS get_space_uri
       RETURNING
         VALUE(uri) TYPE string.
 
     METHODS get_content_uri
+      RETURNING
+        VALUE(uri) TYPE string.
+
+    METHODS get_labels_uri
+      IMPORTING
+        page_id    TYPE i
       RETURNING
         VALUE(uri) TYPE string.
 
@@ -48,11 +79,29 @@ CLASS zcl_conflu_obj_documentation DEFINITION
       RETURNING
         VALUE(space_info) TYPE zif_conflu_obj_documentation=>ts_space_info.
 
+    METHODS deserialize_page_info
+      IMPORTING
+        content          TYPE string
+      RETURNING
+        VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info.
+
     METHODS deserialize_pages_info
       IMPORTING
         content           TYPE string
       RETURNING
         VALUE(pages_info) TYPE zif_conflu_obj_documentation=>tt_page_info.
+
+    METHODS deserialize_labels
+      IMPORTING
+        content       TYPE string
+      RETURNING
+        VALUE(labels) TYPE zif_conflu_obj_documentation=>tt_labels.
+
+    METHODS deserialize_status_response
+      IMPORTING
+        content         TYPE string
+      RETURNING
+        VALUE(response) TYPE ts_status_response.
 
   PRIVATE SECTION.
     TYPES:
@@ -62,25 +111,36 @@ CLASS zcl_conflu_obj_documentation DEFINITION
       END OF ts_exporter,
       tt_exporter TYPE SORTED TABLE OF ts_exporter WITH UNIQUE KEY type,
 
-      BEGIN OF ts_documentation,
+      BEGIN OF ts_doc_objects,
         object_type TYPE trobjtype,
         object_name TYPE sobj_name,
+        package     TYPE devclass,
         content     TYPE string,
-      END OF ts_documentation,
-      tt_documentation TYPE HASHED TABLE OF ts_documentation WITH UNIQUE KEY object_type object_name,
+      END OF ts_doc_objects,
+      tt_doc_objects TYPE HASHED TABLE OF ts_doc_objects WITH UNIQUE KEY object_type object_name,
 
-      tt_tadir         TYPE HASHED TABLE OF tadir WITH UNIQUE KEY pgmid object obj_name.
+      tt_tadir       TYPE HASHED TABLE OF tadir WITH UNIQUE KEY pgmid object obj_name.
 
     DATA:
-      space_key TYPE string,
-      package   TYPE devclass,
-      exporters TYPE tt_exporter.
+      space_key             TYPE string,
+      package               TYPE devclass,
+      documentation_objects TYPE tt_exporter.
+
+    METHODS create_http_client
+      RETURNING
+        VALUE(http_client) TYPE REF TO if_http_client
+      RAISING
+        zcx_conflu_rest.
 
     METHODS create_rest_client
       IMPORTING
         uri                TYPE string
+        data               TYPE string OPTIONAL
+        api_method         TYPE string DEFAULT zif_conflu_constants=>api_method-get
       RETURNING
-        VALUE(rest_client) TYPE REF TO cl_rest_http_client.
+        VALUE(rest_client) TYPE REF TO cl_rest_http_client
+      RAISING
+        zcx_conflu_rest.
 
     METHODS read_repository_objects
       IMPORTING
@@ -92,18 +152,21 @@ CLASS zcl_conflu_obj_documentation DEFINITION
       RAISING
         zcx_conflu_export.
 
-    METHODS export_documentation
+    METHODS export_doc_object
       IMPORTING
-        space_key     TYPE string
-        documentation TYPE tt_documentation
+        doc_object TYPE ts_doc_objects
       RAISING
+        zcx_conflu_rest
+        zcx_conflu_docu
         zcx_conflu_export.
 
     METHODS search_page
       IMPORTING
         title            TYPE string
       RETURNING
-        VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info.
+        VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info
+      RAISING
+        zcx_conflu_rest.
 
     METHODS search_child_page
       IMPORTING
@@ -111,7 +174,68 @@ CLASS zcl_conflu_obj_documentation DEFINITION
         title            TYPE string
         wildcard         TYPE abap_bool OPTIONAL
       RETURNING
-        VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info.
+        VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info
+      RAISING
+        zcx_conflu_rest.
+
+    METHODS create_page
+      IMPORTING
+        title            TYPE string
+        parent           TYPE i
+        body             TYPE string
+        labels           TYPE zif_conflu_obj_documentation=>tt_labels OPTIONAL
+      RETURNING
+        VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info
+      RAISING
+        zcx_conflu_rest
+        zcx_conflu_export.
+
+    METHODS update_page
+      IMPORTING
+        page_id          TYPE i OPTIONAL
+        version          TYPE i OPTIONAL
+        title            TYPE string
+        parent           TYPE i
+        body             TYPE string
+        labels           TYPE zif_conflu_obj_documentation=>tt_labels OPTIONAL
+      RETURNING
+        VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info
+      RAISING
+        zcx_conflu_rest
+        zcx_conflu_export.
+
+    METHODS get_page_labels
+      IMPORTING
+        page_id       TYPE i OPTIONAL
+      RETURNING
+        VALUE(labels) TYPE zif_conflu_obj_documentation=>tt_labels
+      RAISING
+        zcx_conflu_rest
+        zcx_conflu_export.
+
+    METHODS set_page_labels
+      IMPORTING
+        page_id TYPE i OPTIONAL
+        labels  TYPE zif_conflu_obj_documentation=>tt_labels
+      RAISING
+        zcx_conflu_rest
+        zcx_conflu_export.
+
+    METHODS add_page_labels
+      IMPORTING
+        page_id TYPE i OPTIONAL
+        labels  TYPE zif_conflu_obj_documentation=>tt_labels
+      RAISING
+        zcx_conflu_rest
+        zcx_conflu_export.
+
+    METHODS delete_page_labels
+      IMPORTING
+        page_id TYPE i OPTIONAL
+        labels  TYPE zif_conflu_obj_documentation=>tt_labels
+      RAISING
+        zcx_conflu_rest
+        zcx_conflu_export.
 
 ENDCLASS.
 
@@ -122,7 +246,25 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
   METHOD create.
 
-    object_documentation = NEW zcl_conflu_obj_documentation( space_key = space_key package = package ).
+    TRY.
+        DATA(main_class) = NEW cl_oo_class( 'ZCL_CONFLU_OBJ_DOCUMENTATION' ).
+      CATCH cx_class_not_existent INTO DATA(class_exception).
+        RAISE EXCEPTION TYPE zcx_conflu
+          EXPORTING
+            previous = class_exception.
+    ENDTRY.
+
+    DATA(subclasses) = main_class->get_subclasses( ).
+
+    IF subclasses IS INITIAL.
+      object_documentation = NEW zcl_conflu_obj_documentation( space_key = space_key package = package ).
+    ELSE.
+      DATA(subclass_name) = subclasses[ 1 ]-clsname.
+      CREATE OBJECT object_documentation TYPE (subclass_name)
+        EXPORTING
+          space_key = space_key
+          package   = package.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -140,8 +282,6 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     DATA(rest_client) = create_rest_client( get_space_uri( ) ).
 
-    rest_client->if_rest_resource~get( ).
-
     DATA(info_json) = rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
 
     information = deserialize_space_info( info_json ).
@@ -151,57 +291,93 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
   METHOD zif_conflu_obj_documentation~get_page_info.
 
-    DATA:
-      parent_page TYPE zif_conflu_obj_documentation=>ts_page_info.
-
     TRY.
-        DATA(object_documentation) = exporters[ type = object_type ]-object.
+        DATA(documentation_object) = get_documentation_object( CONV #( object_type ) ).
       CATCH cx_sy_itab_line_not_found.
         RETURN. " TODO: Raise an exception - Object not supported
     ENDTRY.
 
-    DATA(levels) = object_documentation->get_documentation_levels( ).
+    DATA(levels) = zif_conflu_obj_documentation~get_documentation_levels( object_type ).
+
+    IF line_exists( levels[ page_info-id = 0 ] ).
+      RETURN. " TODO: Raise an exception - Level path not found
+    ENDIF.
+
+    information =
+        COND #( WHEN levels IS INITIAL
+                    THEN search_page( object_name )
+                    ELSE search_child_page( parent   = levels[ lines( levels ) ]-page_info-id
+                                            title    = object_name
+                                            wildcard = abap_true ) ).
+
+  ENDMETHOD.
+
+
+  METHOD zif_conflu_obj_documentation~get_documentation_levels.
+
+    DATA:
+      previous_level TYPE zif_conflu_obj_documentation=>ts_documentation_level.
+
+    TRY.
+        DATA(object_documentation) = get_documentation_object( CONV #( object_type ) ).
+      CATCH cx_sy_itab_line_not_found.
+        RETURN. " TODO: Raise an exception - Object not supported
+    ENDTRY.
+
+    DATA(levels_base) = object_documentation->get_documentation_levels( ).
+
+    levels = CORRESPONDING #( levels_base ).
 
     LOOP AT levels REFERENCE INTO DATA(level).
 
-      parent_page = COND #( WHEN level->level = 1
+      level->page_info = COND #( WHEN previous_level IS INITIAL
                                 THEN search_page( level->name )
-                                ELSE search_child_page( parent = parent_page-id title = level->name ) ).
+                                ELSE search_child_page( parent = previous_level-page_info-id title = level->name ) ).
 
-      IF parent_page IS INITIAL.
+      IF level->page_info IS INITIAL.
         EXIT.
       ENDIF.
 
-    ENDLOOP.
+      previous_level = level->*.
 
-    IF levels IS NOT INITIAL AND parent_page IS INITIAL.
-      RETURN. " TODO: Raise an exception - Object not supported
-    ENDIF.
+    ENDLOOP.
 
   ENDMETHOD.
 
 
   METHOD zif_conflu_obj_documentation~export.
 
-    DATA(documentation) = VALUE tt_documentation( ).
+    DATA(doc_objects) = VALUE tt_doc_objects( ).
 
     LOOP AT read_repository_objects( filter ) REFERENCE INTO DATA(object).
 
       TRY.
-          DATA(object_documentation) = exporters[ type = object->object ]-object.
+          DATA(object_documentation) = get_documentation_object( object->object ).
         CATCH cx_sy_itab_line_not_found.
           CONTINUE.
       ENDTRY.
 
-      INSERT VALUE ts_documentation(
+      INSERT VALUE ts_doc_objects(
           object_type = object->object
           object_name = object->obj_name
-          content     = object_documentation->read_documentation( object->* ) ) INTO TABLE documentation.
+          package     = object->devclass
+          content     = object_documentation->read_documentation( object_name = object->obj_name
+                                                                  package     = object->devclass )
+        ) INTO TABLE doc_objects.
 
     ENDLOOP.
 
-    export_documentation( space_key     = space_key
-                          documentation = documentation ).
+
+    LOOP AT doc_objects REFERENCE INTO DATA(doc_object).
+      export_doc_object( doc_object->* ).
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+  METHOD get_documentation_object.
+
+    object = documentation_objects[ type = object_type ]-object.
 
   ENDMETHOD.
 
@@ -220,6 +396,13 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD get_labels_uri.
+
+    uri = replace( val = zif_conflu_constants=>api_resources-labels sub = |<!PAGE!>| with = |{ page_id ZERO = NO }| ).
+
+  ENDMETHOD.
+
+
   METHOD get_page_childs_uri.
 
     uri = |{ get_content_uri( ) }/{ parent ZERO = NO }/child/page|.
@@ -231,13 +414,13 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD create_rest_client.
+  METHOD create_http_client.
 
     cl_http_client=>create_by_destination(
      EXPORTING
        destination              = zif_conflu_constants=>rfc_destination
      IMPORTING
-       client                   = DATA(http_client)
+       client                   = http_client
      EXCEPTIONS
        argument_not_found       = 1
        destination_not_found    = 2
@@ -246,8 +429,15 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
        internal_error           = 5
        OTHERS                   = 6 ).
     IF sy-subrc <> 0.
-      RETURN. " TODO: Raise an exception
+      zcx_conflu_rest=>raise_system( ).
     ENDIF.
+
+  ENDMETHOD.
+
+
+  METHOD create_rest_client.
+
+    DATA(http_client) = create_http_client( ).
 
     rest_client = NEW cl_rest_http_client( http_client ).
 
@@ -256,7 +446,25 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     DATA(request) = rest_client->if_rest_client~create_request_entity( ).
 
-    request->set_content_type( iv_media_type = if_rest_media_type=>gc_appl_json ).
+    request->set_content_type( if_rest_media_type=>gc_appl_json ).
+    request->set_string_data( data ).
+
+    DATA(header_fields) = request->get_header_fields( ).
+
+    CASE api_method.
+      WHEN zif_conflu_constants=>api_method-get.
+        rest_client->if_rest_client~get( ).
+
+      WHEN zif_conflu_constants=>api_method-post.
+        rest_client->if_rest_client~post( request ).
+
+      WHEN zif_conflu_constants=>api_method-put.
+        rest_client->if_rest_client~put( request ).
+
+      WHEN zif_conflu_constants=>api_method-delete.
+        rest_client->if_rest_client~delete( ).
+
+    ENDCASE.
 
     rest_client->if_rest_client~set_request_header( iv_name  = 'auth-token'
                                                     iv_value = get_auth_token( ) ).
@@ -310,16 +518,50 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
       CREATE OBJECT export_object TYPE (class->clsname).
 
       INSERT VALUE #( type   = export_object->get_type( )
-                      object = export_object ) INTO TABLE exporters.
+                      object = export_object ) INTO TABLE documentation_objects.
 
     ENDLOOP.
 
   ENDMETHOD.
 
 
-  METHOD export_documentation.
+  METHOD export_doc_object.
 
+    DATA(levels) = zif_conflu_obj_documentation~get_documentation_levels( CONV #( doc_object-object_type ) ).
 
+    LOOP AT levels REFERENCE INTO DATA(level) WHERE page_info-id = 0.
+      DATA(parent_page) = create_page( title  = level->name
+                                       parent = COND #( WHEN level->level > 1
+                                                            THEN levels[ level = level->level - 1 ]-page_info-id )
+                                       body   = level->default_content ).
+    ENDLOOP.
+
+    DATA(documentation_object) = get_documentation_object( doc_object-object_type ).
+
+    DATA(object_description) = documentation_object->get_description( object_name = doc_object-object_name
+                                                                      package     = doc_object-package ).
+
+    DATA(page_info) = zif_conflu_obj_documentation~get_page_info(
+        object_type = CONV #( doc_object-object_type )
+        object_name = CONV #( doc_object-object_name ) ).
+
+    IF page_info IS INITIAL.
+      create_page( title  = |{ doc_object-object_name } - { object_description }|
+                   parent = COND #( WHEN parent_page-id IS NOT INITIAL THEN parent_page-id
+                                                                       ELSE levels[ lines( levels ) ]-page_info-id )
+                   body   = doc_object-content
+                   labels = VALUE #( ( name = doc_object-package )
+                                     ( name = doc_object-object_type ) ) ).
+    ELSE.
+      update_page( page_id = page_info-id
+                   version = page_info-version
+                   title   = |{ doc_object-object_name } - { object_description }|
+                   parent  = COND #( WHEN parent_page-id IS NOT INITIAL THEN parent_page-id
+                                                                        ELSE levels[ lines( levels ) ]-page_info-id )
+                   body    = doc_object-content
+                   labels  = VALUE #( ( name = doc_object-package )
+                                      ( name = doc_object-object_type ) ) ).
+    ENDIF.
 
   ENDMETHOD.
 
@@ -348,6 +590,39 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD deserialize_page_info.
+
+    TYPES:
+      BEGIN OF lts_page_info,
+        id     TYPE i,
+        type   TYPE string,
+        status TYPE string,
+        title  TYPE string,
+        BEGIN OF version,
+          number TYPE i,
+        END OF version,
+        BEGIN OF _links,
+          webui TYPE string,
+          base  TYPE string,
+        END OF _links,
+      END OF lts_page_info.
+
+    DATA:
+      data TYPE lts_page_info.
+
+    /ui2/cl_json=>deserialize( EXPORTING json = content
+                               CHANGING  data = data ).
+
+    page_info-id      = data-id.
+    page_info-type    = data-type.
+    page_info-status  = data-status.
+    page_info-title   = data-title.
+    page_info-version = data-version-number.
+    page_info-url     = |{ data-_links-base }{ data-_links-webui }|.
+
+  ENDMETHOD.
+
+
   METHOD deserialize_pages_info.
 
     TYPES:
@@ -356,6 +631,9 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
         type   TYPE string,
         status TYPE string,
         title  TYPE string,
+        BEGIN OF version,
+          number TYPE i,
+        END OF version,
         BEGIN OF _links,
           webui TYPE string,
         END OF _links,
@@ -377,13 +655,53 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     LOOP AT data-results REFERENCE INTO DATA(result).
 
-      INSERT VALUE #( id     = result->id
-                      type   = result->type
-                      status = result->status
-                      title  = result->title
-                      url    = |{ data-_links-base }{ result->_links-webui }| ) INTO TABLE pages_info.
+      INSERT VALUE #( id      = result->id
+                      type    = result->type
+                      status  = result->status
+                      title   = result->title
+                      version = result->version-number
+                      url     = |{ data-_links-base }{ result->_links-webui }| ) INTO TABLE pages_info.
 
     ENDLOOP.
+
+  ENDMETHOD.
+
+
+  METHOD deserialize_labels.
+
+    TYPES:
+      BEGIN OF lts_result,
+        prefix TYPE string,
+        name   TYPE string,
+        id     TYPE i,
+      END OF lts_result,
+      ltt_result TYPE STANDARD TABLE OF lts_result WITH DEFAULT KEY.
+
+    DATA:
+      BEGIN OF data,
+        results TYPE ltt_result,
+        start   TYPE i,
+        limit   TYPE i,
+        size    TYPE i,
+        BEGIN OF _links,
+          self    TYPE string,
+          base    TYPE string,
+          context TYPE string,
+        END OF _links,
+      END OF data.
+
+    /ui2/cl_json=>deserialize( EXPORTING json = content
+                               CHANGING  data = data ).
+
+    labels = CORRESPONDING #( data-results MAPPING name = name ).
+
+  ENDMETHOD.
+
+
+  METHOD deserialize_status_response.
+
+    /ui2/cl_json=>deserialize( EXPORTING json = content
+                               CHANGING  data = response ).
 
   ENDMETHOD.
 
@@ -393,8 +711,6 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
     DATA(uri_escaped) = escape( val = title format = cl_abap_format=>e_xss_url ).
 
     DATA(rest_client) = create_rest_client( |{ get_content_uri( ) }?spaceKey={ space_key }&title={ uri_escaped }| ).
-
-    rest_client->if_rest_resource~get( ).
 
     DATA(info_json) = rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
 
@@ -409,9 +725,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     DATA(uri_escaped) = escape( val = title format = cl_abap_format=>e_xss_url ).
 
-    DATA(rest_client) = create_rest_client( |{ get_page_childs_uri( parent ) }| ).
-
-    rest_client->if_rest_resource~get( ).
+    DATA(rest_client) = create_rest_client( |{ get_page_childs_uri( parent ) }?expand=version| ).
 
     DATA(info_json) = rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
 
@@ -420,7 +734,184 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
     IF wildcard IS INITIAL.
       page_info = COND #( WHEN line_exists( pages_info[ title = title ] ) THEN pages_info[ title = title ] ).
     ELSE.
+      LOOP AT pages_info REFERENCE INTO DATA(page_info_wc) WHERE title CP |{ title }*|.
+        page_info = page_info_wc->*.
+        EXIT.
+      ENDLOOP.
     ENDIF.
+
+  ENDMETHOD.
+
+
+  METHOD create_page.
+
+    page_info = COND #( WHEN labels IS SUPPLIED
+                            THEN update_page( title  = title
+                                              parent = parent
+                                              body   = body
+                                              labels = labels )
+                            ELSE update_page( title  = title
+                                              parent = parent
+                                              body   = body ) ).
+
+  ENDMETHOD.
+
+
+  METHOD update_page.
+
+    TYPES:
+      BEGIN OF lts_antecesors,
+        id TYPE i,
+      END OF lts_antecesors,
+      ltt_antecesors TYPE STANDARD TABLE OF lts_antecesors WITH DEFAULT KEY.
+
+    DATA:
+      BEGIN OF content,
+        BEGIN OF version,
+          number TYPE i,
+        END OF version,
+        id        TYPE i,
+        type      TYPE string,
+        title     TYPE string,
+        ancestors TYPE ltt_antecesors,
+        BEGIN OF space,
+          key TYPE string,
+        END OF space,
+        BEGIN OF body,
+          BEGIN OF storage,
+            value          TYPE string,
+            representation TYPE string,
+          END OF storage,
+        END OF body,
+      END OF content.
+
+    content-version-number = COND #( WHEN version IS NOT INITIAL THEN version + 1 ).
+
+    content-id        = page_id.
+    content-type      = zif_conflu_constants=>content_type-page.
+    content-title     = title.
+    content-ancestors = COND #( WHEN parent <> 0 THEN VALUE #( ( id = parent ) ) ).
+    content-space-key = space_key.
+
+    content-body-storage-value = body.
+    content-body-storage-representation = |storage|.
+
+    DATA(json) = /ui2/cl_json=>serialize( data        = content
+                                          pretty_name = /ui2/cl_json=>pretty_mode-low_case ).
+
+    DATA(rest_client) = create_rest_client(
+                                uri        = COND #( WHEN page_id IS INITIAL
+                                                         THEN |{ get_content_uri( ) }|
+                                                         ELSE |{ get_content_uri( ) }/{ page_id ZERO = NO }| )
+                                data       = json
+                                api_method = COND #( WHEN page_id IS INITIAL
+                                                         THEN zif_conflu_constants=>api_method-post
+                                                         ELSE zif_conflu_constants=>api_method-put ) ).
+
+    DATA(rest_response) = rest_client->if_rest_client~get_response_entity( ).
+
+    DATA(http_status) = rest_response->get_header_field( '~status_code' ).
+    DATA(response) = rest_response->get_string_data( ).
+
+    IF http_status BETWEEN '200' AND '299'.
+      page_info = deserialize_page_info( response ).
+    ELSE.
+      DATA(status_response) = deserialize_status_response( response ).
+      zcx_conflu_rest=>raise_text( COND #( WHEN status_response-message IS NOT INITIAL THEN status_response-message
+                                                                                       ELSE status_response-reason ) ).
+    ENDIF.
+
+    IF labels IS SUPPLIED.
+      set_page_labels( page_id = page_info-id
+                       labels  = labels ).
+    ENDIF.
+
+  ENDMETHOD.
+
+
+  METHOD get_page_labels.
+
+    DATA(rest_client) = create_rest_client( |{ get_labels_uri( page_id ) }| ).
+
+    DATA(labels_json) = rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
+
+    labels = deserialize_labels( labels_json ).
+
+  ENDMETHOD.
+
+
+  METHOD set_page_labels.
+
+    DATA:
+      labels_to_create TYPE zif_conflu_obj_documentation=>tt_labels,
+      labels_to_delete TYPE zif_conflu_obj_documentation=>tt_labels.
+
+    DATA(labels_assigned) = get_page_labels( page_id ).
+
+    LOOP AT labels REFERENCE INTO DATA(label).
+
+      IF line_exists( labels_assigned[ name = label->name ] ).
+        CONTINUE.
+      ENDIF.
+
+      INSERT label->* INTO TABLE labels_to_create.
+
+    ENDLOOP.
+
+    LOOP AT labels_assigned REFERENCE INTO label.
+
+      IF line_exists( labels[ name = label->name ] ).
+        CONTINUE.
+      ENDIF.
+
+      INSERT label->* INTO TABLE labels_to_delete.
+
+    ENDLOOP.
+
+    delete_page_labels( labels_to_delete ).
+    add_page_labels( labels_to_create ).
+
+  ENDMETHOD.
+
+
+  METHOD add_page_labels.
+
+    TYPES:
+      BEGIN OF lts_labels,
+        prefix TYPE string,
+        name   TYPE string,
+      END OF lts_labels,
+      ltt_labels TYPE STANDARD TABLE OF lts_labels WITH DEFAULT KEY.
+
+    IF labels IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    DATA(labels_to_create) = CORRESPONDING ltt_labels( labels MAPPING name = name ).
+
+    LOOP AT labels_to_create REFERENCE INTO DATA(label).
+      label->prefix = |global|.
+    ENDLOOP.
+
+    DATA(rest_client) = create_rest_client( uri        = |{ get_labels_uri( page_id ) }|
+                                            data       = /ui2/cl_json=>serialize( labels_to_create )
+                                            api_method = zif_conflu_constants=>api_method-post ).
+
+    rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
+
+  ENDMETHOD.
+
+
+  METHOD delete_page_labels.
+
+    LOOP AT labels REFERENCE INTO DATA(label).
+
+      DATA(rest_client) = create_rest_client( uri        = |{ get_labels_uri( page_id ) }/{ label->name }|
+                                              api_method = zif_conflu_constants=>api_method-delete ).
+
+      rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
+
+    ENDLOOP.
 
   ENDMETHOD.
 
