@@ -1,4 +1,5 @@
-CLASS zcl_conflu_obj_clas DEFINITION
+"! <p class="shorttext synchronized" lang="en">Export Interface documentation</p>
+CLASS zcl_conflu_obj_intf DEFINITION
   PUBLIC
   FINAL
   INHERITING FROM zcl_conflu_obj_oo
@@ -17,7 +18,7 @@ ENDCLASS.
 
 
 
-CLASS zcl_conflu_obj_clas IMPLEMENTATION.
+CLASS zcl_conflu_obj_intf IMPLEMENTATION.
 
 
   METHOD zif_conflu_obj~get_type.
@@ -50,7 +51,7 @@ CLASS zcl_conflu_obj_clas IMPLEMENTATION.
 
   METHOD get_type.
 
-    object_type = 'CLAS'.
+    object_type = 'INTF'.
 
   ENDMETHOD.
 

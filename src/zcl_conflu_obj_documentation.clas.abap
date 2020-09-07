@@ -183,6 +183,7 @@ CLASS zcl_conflu_obj_documentation DEFINITION
         title            TYPE string
         parent           TYPE i
         body             TYPE string
+        doc_object       TYPE ts_doc_objects OPTIONAL
         labels           TYPE zif_conflu_obj_documentation=>tt_labels OPTIONAL
       RETURNING
         VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info
@@ -197,6 +198,7 @@ CLASS zcl_conflu_obj_documentation DEFINITION
         title            TYPE string
         parent           TYPE i
         body             TYPE string
+        doc_object       TYPE ts_doc_objects OPTIONAL
         labels           TYPE zif_conflu_obj_documentation=>tt_labels OPTIONAL
       RETURNING
         VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info
@@ -223,7 +225,7 @@ CLASS zcl_conflu_obj_documentation DEFINITION
 
     METHODS add_page_labels
       IMPORTING
-        page_id TYPE i OPTIONAL
+        page_id TYPE i
         labels  TYPE zif_conflu_obj_documentation=>tt_labels
       RAISING
         zcx_conflu_rest
@@ -231,11 +233,16 @@ CLASS zcl_conflu_obj_documentation DEFINITION
 
     METHODS delete_page_labels
       IMPORTING
-        page_id TYPE i OPTIONAL
+        page_id TYPE i
         labels  TYPE zif_conflu_obj_documentation=>tt_labels
       RAISING
         zcx_conflu_rest
         zcx_conflu_export.
+    METHODS get_object_properties_xml
+      IMPORTING
+        doc_object            TYPE zcl_conflu_obj_documentation=>ts_doc_objects
+      RETURNING
+        VALUE(properties_xml) TYPE string.
 
 ENDCLASS.
 
@@ -550,21 +557,23 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
         object_name = CONV #( doc_object-object_name ) ).
 
     IF page_info IS INITIAL.
-      create_page( title  = |{ doc_object-object_name } - { object_description }|
-                   parent = COND #( WHEN parent_page-id IS NOT INITIAL THEN parent_page-id
-                                                                       ELSE levels[ lines( levels ) ]-page_info-id )
-                   body   = doc_object-content
-                   labels = VALUE #( ( name = doc_object-package )
-                                     ( name = doc_object-object_type ) ) ).
+      create_page( title      = |{ doc_object-object_name } - { object_description }|
+                   parent     = COND #( WHEN parent_page-id IS NOT INITIAL THEN parent_page-id
+                                                                           ELSE levels[ lines( levels ) ]-page_info-id )
+                   body       = doc_object-content
+                   doc_object = doc_object
+                   labels     = VALUE #( ( name = doc_object-package )
+                                         ( name = doc_object-object_type ) ) ).
     ELSE.
-      update_page( page_id = page_info-id
-                   version = page_info-version
-                   title   = |{ doc_object-object_name } - { object_description }|
-                   parent  = COND #( WHEN parent_page-id IS NOT INITIAL THEN parent_page-id
-                                                                        ELSE levels[ lines( levels ) ]-page_info-id )
-                   body    = doc_object-content
-                   labels  = VALUE #( ( name = doc_object-package )
-                                      ( name = doc_object-object_type ) ) ).
+      update_page( page_id    = page_info-id
+                   version    = page_info-version
+                   title      = |{ doc_object-object_name } - { object_description }|
+                   parent     = COND #( WHEN parent_page-id IS NOT INITIAL THEN parent_page-id
+                                                                           ELSE levels[ lines( levels ) ]-page_info-id )
+                   body       = doc_object-content
+                   doc_object = doc_object
+                   labels     = VALUE #( ( name = doc_object-package )
+                                         ( name = doc_object-object_type ) ) ).
     ENDIF.
 
   ENDMETHOD.
@@ -750,13 +759,15 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   METHOD create_page.
 
     page_info = COND #( WHEN labels IS SUPPLIED
-                            THEN update_page( title  = title
-                                              parent = parent
-                                              body   = body
-                                              labels = labels )
-                            ELSE update_page( title  = title
-                                              parent = parent
-                                              body   = body ) ).
+                            THEN update_page( title      = title
+                                              parent     = parent
+                                              body       = body
+                                              doc_object = doc_object
+                                              labels     = labels )
+                            ELSE update_page( title      = title
+                                              parent     = parent
+                                              body       = body
+                                              doc_object = doc_object ) ).
 
   ENDMETHOD.
 
@@ -789,6 +800,8 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
         END OF body,
       END OF content.
 
+    DATA(properties) = COND #( WHEN doc_object IS NOT INITIAL THEN get_object_properties_xml( doc_object ) ).
+
     content-version-number = COND #( WHEN version IS NOT INITIAL THEN version + 1 ).
 
     content-id        = page_id.
@@ -797,7 +810,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
     content-ancestors = COND #( WHEN parent <> 0 THEN VALUE #( ( id = parent ) ) ).
     content-space-key = space_key.
 
-    content-body-storage-value = body.
+    content-body-storage-value = |{ properties }{ body }|.
     content-body-storage-representation = |storage|.
 
     DATA(json) = /ui2/cl_json=>serialize( data        = content
@@ -872,8 +885,8 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     ENDLOOP.
 
-    delete_page_labels( labels_to_delete ).
-    add_page_labels( labels_to_create ).
+    delete_page_labels( page_id = page_id labels = labels_to_delete ).
+    add_page_labels( page_id = page_id labels = labels_to_create ).
 
   ENDMETHOD.
 
@@ -898,7 +911,9 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
     ENDLOOP.
 
     DATA(rest_client) = create_rest_client( uri        = |{ get_labels_uri( page_id ) }|
-                                            data       = /ui2/cl_json=>serialize( labels_to_create )
+                                            data       = /ui2/cl_json=>serialize(
+                                                                    data = labels_to_create
+                                                                    pretty_name = /ui2/cl_json=>pretty_mode-low_case )
                                             api_method = zif_conflu_constants=>api_method-post ).
 
     rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
@@ -916,6 +931,40 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
       rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
 
     ENDLOOP.
+
+  ENDMETHOD.
+
+
+  METHOD get_object_properties_xml.
+
+    DATA:
+      xml TYPE string.
+
+    CALL TRANSFORMATION zconflu_prop_table
+      SOURCE repository = doc_object
+      RESULT XML xml.
+
+    DATA(regex) = NEW cl_abap_regex( pattern = '<html[^>]*>(.*)</html>' ignore_case = abap_true ).
+
+    DATA(matcher) = regex->create_matcher( text = xml ).
+
+    DATA(matches) = matcher->find_all( ).
+
+    IF matches IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    DATA(match) = matches[ 1 ].
+
+    IF match-submatches IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    DATA(submatch) = match-submatches[ 1 ].
+
+    properties_xml = substring( val = xml
+                                off = submatch-offset
+                                len = submatch-length ).
 
   ENDMETHOD.
 

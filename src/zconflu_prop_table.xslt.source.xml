@@ -1,0 +1,94 @@
+<xsl:transform xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:ac="http://www.atlassian.com/schema/confluence/4/ac" xmlns:sap="http://www.sap.com/sapxsl" version="1.0">
+
+  <xsl:output indent="no" method="html"/>
+  <xsl:strip-space elements="*"/>
+
+  <xsl:template match="/">
+
+    <html>
+
+      <xsl:element name="ac:structured-macro">
+
+        <xsl:attribute name="ac:name">
+          <xsl:value-of select="string( 'details' )"/>
+        </xsl:attribute>
+
+        <xsl:attribute name="ac:schema-version">
+          <xsl:value-of select="string( '1' )"/>
+        </xsl:attribute>
+
+        <xsl:element name="ac:parameter">
+
+          <xsl:attribute name="ac:name">
+            <xsl:value-of select="string( 'hidden' )"/>
+          </xsl:attribute>
+
+          <xsl:value-of select="string( 'true' )"/>
+
+        </xsl:element>
+
+        <xsl:element name="ac:parameter">
+
+          <xsl:attribute name="ac:name">
+            <xsl:value-of select="string( 'id' )"/>
+          </xsl:attribute>
+
+          <xsl:value-of select="string( 'repository' )"/>
+
+        </xsl:element>
+
+        <xsl:element name="ac:rich-text-body">
+
+          <xsl:element name="table">
+
+            <xsl:element name="colgroup">
+
+              <xsl:element name="col">
+                <xsl:value-of select="string( '' )"/>
+              </xsl:element>
+
+              <xsl:element name="col">
+                <xsl:value-of select="string( '' )"/>
+              </xsl:element>
+
+            </xsl:element>
+
+            <xsl:element name="tbody">
+
+              <xsl:element name="tr">
+
+                <xsl:element name="th">
+                  <xsl:value-of select="string( 'Object Type' )"/>
+                </xsl:element>
+
+                <xsl:element name="th">
+                  <xsl:value-of select="string( //REPOSITORY/OBJECT_TYPE )"/>
+                </xsl:element>
+
+              </xsl:element>
+
+              <xsl:element name="tr">
+
+                <xsl:element name="th">
+                  <xsl:value-of select="string( 'Package' )"/>
+                </xsl:element>
+
+                <xsl:element name="th">
+                  <xsl:value-of select="string( //REPOSITORY/PACKAGE )"/>
+                </xsl:element>
+
+              </xsl:element>
+
+            </xsl:element>
+
+          </xsl:element>
+
+        </xsl:element>
+
+      </xsl:element>
+
+    </html>
+
+  </xsl:template>
+
+</xsl:transform>
