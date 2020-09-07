@@ -447,6 +447,10 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
     DATA(request) = rest_client->if_rest_client~create_request_entity( ).
 
     request->set_content_type( if_rest_media_type=>gc_appl_json ).
+
+    request->set_header_field( iv_name  = 'Content-Type'
+                               iv_value = if_rest_media_type=>gc_appl_json ).
+
     request->set_string_data( data ).
 
     DATA(header_fields) = request->get_header_fields( ).
