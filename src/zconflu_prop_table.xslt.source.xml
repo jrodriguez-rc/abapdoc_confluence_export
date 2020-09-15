@@ -61,7 +61,7 @@
                   <xsl:value-of select="string( 'Object Type' )"/>
                 </xsl:element>
 
-                <xsl:element name="th">
+                <xsl:element name="td">
                   <xsl:value-of select="string( //REPOSITORY/OBJECT_TYPE )"/>
                 </xsl:element>
 
@@ -73,7 +73,7 @@
                   <xsl:value-of select="string( 'Package' )"/>
                 </xsl:element>
 
-                <xsl:element name="th">
+                <xsl:element name="td">
                   <xsl:value-of select="string( //REPOSITORY/PACKAGE )"/>
                 </xsl:element>
 
