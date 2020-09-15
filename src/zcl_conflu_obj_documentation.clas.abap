@@ -41,10 +41,6 @@ CLASS zcl_conflu_obj_documentation DEFINITION
         reason      TYPE string,
       END OF ts_status_response.
 
-    METHODS get_auth_token
-      RETURNING
-        VALUE(token) TYPE string.
-
     METHODS get_documentation_object FINAL
       IMPORTING
         object_type   TYPE trobjtype
@@ -417,10 +413,6 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD get_auth_token.
-  ENDMETHOD.
-
-
   METHOD create_http_client.
 
     cl_http_client=>create_by_destination(
@@ -476,9 +468,6 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
         rest_client->if_rest_client~delete( ).
 
     ENDCASE.
-
-    rest_client->if_rest_client~set_request_header( iv_name  = 'auth-token'
-                                                    iv_value = get_auth_token( ) ).
 
   ENDMETHOD.
 
