@@ -3,36 +3,36 @@ INTERFACE zif_conflu_obj
   PUBLIC.
 
   TYPES:
-    BEGIN OF ts_documentation_level,
+    BEGIN OF ty_documentation_level,
       level           TYPE i,
       name            TYPE string,
       default_content TYPE string,
-    END OF ts_documentation_level,
-    tt_documentation_level TYPE SORTED TABLE OF ts_documentation_level WITH UNIQUE KEY level.
+    END OF ty_documentation_level,
+    ty_documentation_levels TYPE SORTED TABLE OF ty_documentation_level WITH UNIQUE KEY level.
 
   METHODS get_type
     RETURNING
-      VALUE(object_type) TYPE trobjtype.
+      VALUE(result) TYPE trobjtype.
 
   METHODS get_documentation_levels
     RETURNING
-      VALUE(levels) TYPE zif_conflu_obj=>tt_documentation_level.
+      VALUE(result) TYPE zif_conflu_obj=>ty_documentation_levels.
 
   METHODS get_description
     IMPORTING
-      object_name        TYPE sobj_name
-      package            TYPE devclass
+      object_name   TYPE sobj_name
+      package       TYPE devclass
     RETURNING
-      VALUE(description) TYPE string
+      VALUE(result) TYPE string
     RAISING
       zcx_conflu_docu.
 
   METHODS read_documentation
     IMPORTING
-      object_name          TYPE sobj_name
-      package              TYPE devclass
+      object_name   TYPE sobj_name
+      package       TYPE devclass
     RETURNING
-      VALUE(documentation) TYPE string
+      VALUE(result) TYPE string
     RAISING
       zcx_conflu_docu.
 

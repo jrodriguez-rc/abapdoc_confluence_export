@@ -23,35 +23,35 @@ CLASS zcl_conflu_obj_intf IMPLEMENTATION.
 
   METHOD zif_conflu_obj~get_type.
 
-    object_type = get_type( ).
+    result = get_type( ).
 
   ENDMETHOD.
 
 
   METHOD zif_conflu_obj~get_documentation_levels.
 
-    levels = get_documentation_levels( ).
+    result = get_documentation_levels( ).
 
   ENDMETHOD.
 
 
   METHOD zif_conflu_obj~get_description.
 
-    description = get_description( object_name = object_name package = package ).
+    result = get_description( object_name = object_name package = package ).
 
   ENDMETHOD.
 
 
   METHOD zif_conflu_obj~read_documentation.
 
-    documentation = read_documentation( object_name = object_name package = package ).
+    result = read_documentation( object_name = object_name package = package ).
 
   ENDMETHOD.
 
 
   METHOD get_type.
 
-    object_type = 'INTF'.
+    result = 'INTF'.
 
   ENDMETHOD.
 
