@@ -1,6 +1,6 @@
 CLASS zcx_conflu DEFINITION
   PUBLIC
-  INHERITING FROM zcx_static_exception
+  INHERITING FROM cx_static_check
   CREATE PUBLIC .
 
   PUBLIC SECTION.

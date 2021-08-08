@@ -9,33 +9,33 @@ CLASS zcl_conflu_obj_oo DEFINITION
   PROTECTED SECTION.
     METHODS get_type ABSTRACT
       RETURNING
-        VALUE(object_type) TYPE trobjtype.
+        VALUE(result) TYPE trobjtype.
 
     METHODS get_documentation_levels FINAL
       RETURNING
-        VALUE(levels) TYPE zif_conflu_obj=>tt_documentation_level.
+        VALUE(result) TYPE zif_conflu_obj=>ty_documentation_levels.
 
     METHODS get_description FINAL
       IMPORTING
-        object_name        TYPE sobj_name
-        package            TYPE devclass
+        object_name   TYPE sobj_name
+        package       TYPE devclass
       RETURNING
-        VALUE(description) TYPE string
+        VALUE(result) TYPE string
       RAISING
         zcx_conflu_docu.
 
     METHODS read_documentation FINAL
       IMPORTING
-        object_name          TYPE sobj_name
-        package              TYPE devclass
+        object_name   TYPE sobj_name
+        package       TYPE devclass
       RETURNING
-        VALUE(documentation) TYPE string
+        VALUE(result) TYPE string
       RAISING
         zcx_conflu_docu.
 
     METHODS get_class_page_content
       RETURNING
-        VALUE(content) TYPE string.
+        VALUE(result) TYPE string.
 
   PRIVATE SECTION.
 
@@ -48,7 +48,7 @@ CLASS zcl_conflu_obj_oo IMPLEMENTATION.
 
   METHOD get_documentation_levels.
 
-    levels = VALUE #(
+    result = VALUE #(
                 ( level = 1 name = 'Source Code Library' )
                 ( level = 2 name = SWITCH #( get_type( ) WHEN 'CLAS' THEN 'Classes'
                                                          WHEN 'INTF' THEN 'Interfaces' )
@@ -84,8 +84,8 @@ CLASS zcl_conflu_obj_oo IMPLEMENTATION.
       zcx_conflu_docu=>raise_system( ).
     ENDIF.
 
-    description = SWITCH #( get_type( ) WHEN 'CLAS' THEN class_properties-descript
-                                        WHEN 'INTF' THEN interface_properties-descript ).
+    result = SWITCH #( get_type( ) WHEN 'CLAS' THEN class_properties-descript
+                                   WHEN 'INTF' THEN interface_properties-descript ).
 
   ENDMETHOD.
 
@@ -118,16 +118,16 @@ CLASS zcl_conflu_obj_oo IMPLEMENTATION.
 
     DATA(submatch) = match-submatches[ 1 ].
 
-    documentation = substring( val = doc_html
-                               off = submatch-offset
-                               len = submatch-length ).
+    result = substring( val = doc_html
+                        off = submatch-offset
+                        len = submatch-length ).
 
   ENDMETHOD.
 
 
   METHOD get_class_page_content.
 
-    content =
+    result =
      |<p>| &
 *     |  <ac:structured-macro ac:name="detailssummary" ac:schema-version="2">| &
      |  <ac:structured-macro ac:name="detailssummary">| &
