@@ -44,7 +44,16 @@ INTERFACE zif_conflu_obj_documentation
     END OF ts_label,
     tt_labels TYPE STANDARD TABLE OF ts_label WITH DEFAULT KEY.
 
-  METHODS get_space_info
+  TYPES:
+    BEGIN OF ts_json_documentation,
+      object_type TYPE trobjtype,
+      object_name TYPE sobj_name,
+      package     TYPE devclass,
+      content     TYPE string,
+    END OF ts_json_documentation,
+    tt_json_documentation TYPE HASHED TABLE OF ts_json_documentation WITH UNIQUE KEY object_type object_name.
+
+  METHODS        get_space_info
     RETURNING
       VALUE(information) TYPE zif_conflu_obj_documentation=>ts_space_info
     RAISING
@@ -73,6 +82,16 @@ INTERFACE zif_conflu_obj_documentation
   METHODS export
     IMPORTING
       filter TYPE zif_conflu_obj_documentation=>tt_filter OPTIONAL
+    RAISING
+      zcx_conflu_export
+      zcx_conflu_docu
+      zcx_conflu_rest.
+
+  METHODS generate_json
+    IMPORTING
+      filter        TYPE zif_conflu_obj_documentation=>tt_filter OPTIONAL
+    RETURNING
+      VALUE(result) TYPE tt_json_documentation
     RAISING
       zcx_conflu_export
       zcx_conflu_docu
