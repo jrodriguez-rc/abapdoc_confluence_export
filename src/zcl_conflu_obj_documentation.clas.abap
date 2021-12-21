@@ -156,6 +156,17 @@ CLASS zcl_conflu_obj_documentation DEFINITION
         zcx_conflu_docu
         zcx_conflu_export.
 
+    METHODS generate_json_doc_object
+      IMPORTING
+        doc_object    TYPE ts_doc_objects
+        antecesor     TYPE i OPTIONAL
+      RETURNING
+        VALUE(result) TYPE string
+      RAISING
+        zcx_conflu_rest
+        zcx_conflu_docu
+        zcx_conflu_export.
+
     METHODS search_page
       IMPORTING
         title            TYPE string
@@ -183,6 +194,18 @@ CLASS zcl_conflu_obj_documentation DEFINITION
         labels           TYPE zif_conflu_obj_documentation=>tt_labels OPTIONAL
       RETURNING
         VALUE(page_info) TYPE zif_conflu_obj_documentation=>ts_page_info
+      RAISING
+        zcx_conflu_rest
+        zcx_conflu_export.
+
+    METHODS generate_json
+      IMPORTING
+        title         TYPE string
+        body          TYPE string
+        doc_object    TYPE ts_doc_objects OPTIONAL
+        antecesor     TYPE i OPTIONAL
+      RETURNING
+        VALUE(result) TYPE string
       RAISING
         zcx_conflu_rest
         zcx_conflu_export.
@@ -378,6 +401,39 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD zif_conflu_obj_documentation~generate_json.
+
+    DATA(doc_objects) = VALUE tt_doc_objects( ).
+
+    LOOP AT read_repository_objects( filter ) REFERENCE INTO DATA(object).
+
+      TRY.
+          DATA(object_documentation) = get_documentation_object( object->object ).
+        CATCH cx_sy_itab_line_not_found.
+          CONTINUE.
+      ENDTRY.
+
+      INSERT VALUE ts_doc_objects(
+          object_type = object->object
+          object_name = object->obj_name
+          package     = object->devclass
+          content     = object_documentation->read_documentation( object_name = object->obj_name
+                                                                  package     = object->devclass )
+        ) INTO TABLE doc_objects.
+
+    ENDLOOP.
+
+    result =
+        VALUE #(
+            FOR doc_object IN doc_objects
+            ( object_type = doc_object-object_type
+              object_name = doc_object-object_name
+              package     = doc_object-package
+              content     = generate_json_doc_object( doc_object = doc_object antecesor = antecesor ) ) ).
+
+  ENDMETHOD.
+
+
   METHOD get_documentation_object.
 
     object = documentation_objects[ type = object_type ]-object.
@@ -564,6 +620,72 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
                    labels     = VALUE #( ( name = doc_object-package )
                                          ( name = doc_object-object_type ) ) ).
     ENDIF.
+
+  ENDMETHOD.
+
+
+  METHOD generate_json_doc_object.
+
+    DATA(documentation_object) = get_documentation_object( doc_object-object_type ).
+
+    DATA(object_description) =
+        documentation_object->get_description(
+            object_name = doc_object-object_name
+            package     = doc_object-package ).
+
+    result =
+        generate_json(
+            title      = |{ doc_object-object_name } - { object_description }|
+            body       = doc_object-content
+            doc_object = doc_object
+            antecesor  = antecesor ).
+
+  ENDMETHOD.
+
+
+  METHOD generate_json.
+
+    TYPES:
+      BEGIN OF lts_antecesors,
+        id TYPE i,
+      END OF lts_antecesors,
+      ltt_antecesors TYPE STANDARD TABLE OF lts_antecesors WITH DEFAULT KEY.
+
+    DATA:
+      BEGIN OF content,
+        BEGIN OF version,
+          number TYPE i,
+        END OF version,
+        id        TYPE i,
+        type      TYPE string,
+        title     TYPE string,
+        ancestors TYPE ltt_antecesors,
+        BEGIN OF space,
+          key TYPE string,
+        END OF space,
+        BEGIN OF body,
+          BEGIN OF storage,
+            value          TYPE string,
+            representation TYPE string,
+          END OF storage,
+        END OF body,
+      END OF content.
+
+    DATA(properties) = COND #( WHEN doc_object IS NOT INITIAL THEN get_object_properties_xml( doc_object ) ).
+
+    content-version-number = 0.
+
+    content-id        = 0.
+    content-type      = zif_conflu_constants=>content_type-page.
+    content-title     = title.
+    content-ancestors = COND #( WHEN antecesor > 0 THEN VALUE #( ( id = antecesor ) ) ).
+    content-space-key = space_key.
+
+    content-body-storage-value = |{ properties }{ body }|.
+    content-body-storage-representation = |storage|.
+
+    result = /ui2/cl_json=>serialize( data        = content
+                                      pretty_name = /ui2/cl_json=>pretty_mode-low_case ).
 
   ENDMETHOD.
 
