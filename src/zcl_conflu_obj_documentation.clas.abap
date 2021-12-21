@@ -547,11 +547,12 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
     ENDLOOP.
 
     SELECT *
-      INTO TABLE @objects
       FROM tadir
-      WHERE devclass = @package
+      WHERE devclass  = @package
         AND object   IN @object_type_range
-        AND obj_name IN @object_name_range.
+        AND obj_name IN @object_name_range
+        AND delflag   = @abap_false
+      INTO TABLE @objects.
 
   ENDMETHOD.
 
