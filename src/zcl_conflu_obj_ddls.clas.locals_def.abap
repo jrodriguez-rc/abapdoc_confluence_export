@@ -3,16 +3,16 @@ CLASS lcl_constants DEFINITION.
   PUBLIC SECTION.
     CONSTANTS:
       BEGIN OF type,
-        view             TYPE ddddlsrctype VALUE `V`,
-        extend           TYPE ddddlsrctype VALUE `E`,
-        table_function   TYPE ddddlsrctype VALUE `F`,
-        table_entity     TYPE ddddlsrctype VALUE `T`,
-        abstract_entityu TYPE ddddlsrctype VALUE `A`,
-        hierarchy        TYPE ddddlsrctype VALUE `H`,
-        custom_entity    TYPE ddddlsrctype VALUE `Q`,
-        projection_view  TYPE ddddlsrctype VALUE `P`,
-        extend_v2        TYPE ddddlsrctype VALUE `X`,
-        view_entity      TYPE ddddlsrctype VALUE `W`,
+        view             TYPE c LENGTH 1 VALUE `V`,
+        extend           TYPE c LENGTH 1 VALUE `E`,
+        table_function   TYPE c LENGTH 1 VALUE `F`,
+        table_entity     TYPE c LENGTH 1 VALUE `T`,
+        abstract_entityu TYPE c LENGTH 1 VALUE `A`,
+        hierarchy        TYPE c LENGTH 1 VALUE `H`,
+        custom_entity    TYPE c LENGTH 1 VALUE `Q`,
+        projection_view  TYPE c LENGTH 1 VALUE `P`,
+        extend_v2        TYPE c LENGTH 1 VALUE `X`,
+        view_entity      TYPE c LENGTH 1 VALUE `W`,
       END OF type.
 
 ENDCLASS.
