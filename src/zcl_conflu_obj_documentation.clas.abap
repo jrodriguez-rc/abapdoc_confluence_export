@@ -159,7 +159,8 @@ CLASS zcl_conflu_obj_documentation DEFINITION
     METHODS generate_json_doc_object
       IMPORTING
         doc_object    TYPE ts_doc_objects
-        antecesor     TYPE i OPTIONAL
+        antecesor     TYPE p OPTIONAL
+        title_prefix  TYPE string OPTIONAL
       RETURNING
         VALUE(result) TYPE string
       RAISING
@@ -203,7 +204,7 @@ CLASS zcl_conflu_obj_documentation DEFINITION
         title         TYPE string
         body          TYPE string
         doc_object    TYPE ts_doc_objects OPTIONAL
-        antecesor     TYPE i OPTIONAL
+        antecesor     TYPE p OPTIONAL
       RETURNING
         VALUE(result) TYPE string
       RAISING
@@ -429,7 +430,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
             ( object_type = doc_object-object_type
               object_name = doc_object-object_name
               package     = doc_object-package
-              content     = generate_json_doc_object( doc_object = doc_object antecesor = antecesor ) ) ).
+              content     = generate_json_doc_object( doc_object = doc_object antecesor = antecesor title_prefix = title_prefix ) ) ).
 
   ENDMETHOD.
 
@@ -534,14 +535,16 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
       object_type_range TYPE RANGE OF zif_conflu_obj_documentation=>ts_filter-object_type,
       object_name_range TYPE RANGE OF zif_conflu_obj_documentation=>ts_filter-object_name.
 
-    LOOP AT filters REFERENCE INTO DATA(filter) WHERE object_type IS NOT INITIAL.
+    LOOP AT filters REFERENCE INTO DATA(filter).
 
-      INSERT VALUE #( sign = 'I' option = 'EQ'
-                      low  = filter->object_type ) INTO TABLE object_type_range.
+      IF filter->object_type IS NOT INITIAL.
+        INSERT VALUE #( sign = 'I' option = 'EQ'
+                        low  = to_upper( filter->object_type ) ) INTO TABLE object_type_range.
+      ENDIF.
 
       IF filter->object_name IS NOT INITIAL.
         INSERT VALUE #( sign = 'I' option = 'EQ'
-                        low  = filter->object_name ) INTO TABLE object_name_range.
+                        low  = to_upper( filter->object_name ) ) INTO TABLE object_name_range.
       ENDIF.
 
     ENDLOOP.
@@ -636,7 +639,8 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     result =
         generate_json(
-            title      = |{ doc_object-object_name } - { object_description }|
+            title      = |{ COND #( WHEN title_prefix IS NOT INITIAL THEN |{ title_prefix } | ) }| &
+                         |{ doc_object-object_name } - { object_description }|
             body       = doc_object-content
             doc_object = doc_object
             antecesor  = antecesor ).
@@ -648,7 +652,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     TYPES:
       BEGIN OF lts_antecesors,
-        id TYPE i,
+        id TYPE p LENGTH 16 DECIMALS 0,
       END OF lts_antecesors,
       ltt_antecesors TYPE STANDARD TABLE OF lts_antecesors WITH DEFAULT KEY.
 

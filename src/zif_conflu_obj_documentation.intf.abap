@@ -90,7 +90,8 @@ INTERFACE zif_conflu_obj_documentation
   METHODS generate_json
     IMPORTING
       filter        TYPE zif_conflu_obj_documentation=>tt_filter OPTIONAL
-      antecesor     TYPE i OPTIONAL
+      antecesor     TYPE p OPTIONAL
+      title_prefix  TYPE string OPTIONAL
     RETURNING
       VALUE(result) TYPE tt_json_documentation
     RAISING
