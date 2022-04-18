@@ -472,21 +472,17 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
   METHOD create_http_client.
 
-    cl_http_client=>create_by_destination(
-     EXPORTING
-       destination              = zif_conflu_constants=>rfc_destination
-     IMPORTING
-       client                   = http_client
-     EXCEPTIONS
-       argument_not_found       = 1
-       destination_not_found    = 2
-       destination_no_authority = 3
-       plugin_not_active        = 4
-       internal_error           = 5
-       OTHERS                   = 6 ).
-    IF sy-subrc <> 0.
-      zcx_conflu_rest=>raise_system( ).
-    ENDIF.
+    DATA:
+      lb_badi TYPE REF TO ZCONFLU_EXPORT.
+
+    GET BADI lb_badi.
+
+    CALL BADI lb_badi->create_http_client
+      EXPORTING
+        iv_space_key = space_key
+        iv_package   = package
+      RECEIVING
+        ri_result    = http_client.
 
   ENDMETHOD.
 
