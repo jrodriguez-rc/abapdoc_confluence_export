@@ -12,4 +12,11 @@ INTERFACE zif_badi_conflu_export
     RAISING
       zcx_conflu_rest.
 
+  METHODS get_base_uri
+    IMPORTING
+      iv_space_key     TYPE string
+      iv_package       TYPE devclass
+    RETURNING
+      VALUE(rv_result) TYPE string.
+
 ENDINTERFACE.

@@ -38,4 +38,11 @@ CLASS zcl_badi_conflu_export IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD zif_badi_conflu_export~get_base_uri.
+
+    rv_result = `/rest/api`.
+
+  ENDMETHOD.
+
+
 ENDCLASS.

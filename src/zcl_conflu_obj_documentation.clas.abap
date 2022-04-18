@@ -49,6 +49,10 @@ CLASS zcl_conflu_obj_documentation DEFINITION
       RAISING
         cx_sy_itab_line_not_found.
 
+    METHODS get_base_uri
+      RETURNING
+        VALUE(rv_result) TYPE string.
+
     METHODS get_space_uri
       RETURNING
         VALUE(uri) TYPE string.
@@ -442,30 +446,47 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD get_base_uri.
+
+    DATA:
+      lb_badi TYPE REF TO zconflu_export.
+
+    GET BADI lb_badi.
+
+    CALL BADI lb_badi->get_base_uri
+      EXPORTING
+        iv_space_key = space_key
+        iv_package   = package
+      RECEIVING
+        rv_result    = rv_result.
+
+  ENDMETHOD.
+
+
   METHOD get_space_uri.
 
-    uri = |{ zif_conflu_constants=>api_resources-spaces }/{ space_key }?expand=homepage|.
+    uri = |{ get_base_uri( ) }{ zif_conflu_constants=>api_resources-spaces }/{ space_key }?expand=homepage|.
 
   ENDMETHOD.
 
 
   METHOD get_content_uri.
 
-    uri = |{ zif_conflu_constants=>api_resources-content }|.
+    uri = |{ get_base_uri( ) }{ zif_conflu_constants=>api_resources-content }|.
 
   ENDMETHOD.
 
 
   METHOD get_labels_uri.
 
-    uri = replace( val = zif_conflu_constants=>api_resources-labels sub = |<!PAGE!>| with = |{ page_id ZERO = NO }| ).
+    uri = |{ get_base_uri( ) }{ replace( val = zif_conflu_constants=>api_resources-labels sub = |<!PAGE!>| with = |{ page_id ZERO = NO }| ) }|.
 
   ENDMETHOD.
 
 
   METHOD get_page_childs_uri.
 
-    uri = |{ get_content_uri( ) }/{ parent ZERO = NO }/child/page|.
+    uri = |{ get_base_uri( ) }{ get_content_uri( ) }/{ parent ZERO = NO }/child/page|.
 
   ENDMETHOD.
 
