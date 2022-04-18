@@ -486,7 +486,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
   METHOD get_page_childs_uri.
 
-    uri = |{ get_base_uri( ) }{ get_content_uri( ) }/{ parent ZERO = NO }/child/page|.
+    uri = |{ get_content_uri( ) }/{ parent ZERO = NO }/child/page|.
 
   ENDMETHOD.
 
