@@ -16,6 +16,12 @@ INTERFACE zif_conflu_obj_documentation
       name TYPE string,
       type TYPE string,
       url  TYPE string,
+      BEGIN OF homepage,
+        id     TYPE string,
+        type   TYPE string,
+        status TYPE string,
+        title  TYPE string,
+      END OF homepage,
     END OF ts_space_info.
 
   TYPES:

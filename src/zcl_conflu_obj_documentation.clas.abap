@@ -444,7 +444,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
   METHOD get_space_uri.
 
-    uri = |{ zif_conflu_constants=>api_resources-spaces }/{ space_key }|.
+    uri = |{ zif_conflu_constants=>api_resources-spaces }/{ space_key }?expand=homepage|.
 
   ENDMETHOD.
 
@@ -588,7 +588,8 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
     LOOP AT levels REFERENCE INTO DATA(level) WHERE page_info-id = 0.
       DATA(parent_page) = create_page( title  = level->name
                                        parent = COND #( WHEN level->level > 1
-                                                            THEN levels[ level = level->level - 1 ]-page_info-id )
+                                                            THEN levels[ level = level->level - 1 ]-page_info-id
+                                                            ELSE zif_conflu_obj_documentation~get_space_info( )-homepage-id )
                                        body   = level->default_content ).
       level->page_info = parent_page.
     ENDLOOP.
@@ -700,6 +701,12 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
         key  TYPE string,
         name TYPE string,
         type TYPE string,
+        BEGIN OF homepage,
+          id     TYPE string,
+          type   TYPE string,
+          status TYPE string,
+          title  TYPE string,
+        END OF homepage,
         BEGIN OF _links,
           webui TYPE string,
           base  TYPE string,
