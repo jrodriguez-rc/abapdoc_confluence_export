@@ -473,7 +473,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   METHOD create_http_client.
 
     DATA:
-      lb_badi TYPE REF TO ZCONFLU_EXPORT.
+      lb_badi TYPE REF TO zconflu_export.
 
     GET BADI lb_badi.
 
@@ -590,6 +590,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
                                        parent = COND #( WHEN level->level > 1
                                                             THEN levels[ level = level->level - 1 ]-page_info-id )
                                        body   = level->default_content ).
+      level->page_info = parent_page.
     ENDLOOP.
 
     DATA(documentation_object) = get_documentation_object( doc_object-object_type ).
