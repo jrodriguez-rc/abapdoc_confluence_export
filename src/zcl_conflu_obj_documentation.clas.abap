@@ -49,6 +49,10 @@ CLASS zcl_conflu_obj_documentation DEFINITION
       RAISING
         cx_sy_itab_line_not_found.
 
+    METHODS get_api_key
+      RETURNING
+        VALUE(rv_result) TYPE string.
+
     METHODS get_base_uri
       RETURNING
         VALUE(rv_result) TYPE string.
@@ -72,6 +76,12 @@ CLASS zcl_conflu_obj_documentation DEFINITION
         parent     TYPE i
       RETURNING
         VALUE(uri) TYPE string.
+
+    METHODS fill_uri_api_key
+      IMPORTING
+        uri           TYPE string
+      RETURNING
+        VALUE(result) TYPE string.
 
     METHODS deserialize_space_info
       IMPORTING
@@ -313,6 +323,9 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     DATA(rest_client) = create_rest_client( get_space_uri( ) ).
 
+    DATA(status) = rest_client->if_rest_client~get_status( ).
+    DATA(headers) = rest_client->if_rest_client~get_response_headers( ).
+
     DATA(info_json) = rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
 
     information = deserialize_space_info( info_json ).
@@ -446,6 +459,23 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD get_api_key.
+
+    DATA:
+      lb_badi TYPE REF TO zconflu_export.
+
+    GET BADI lb_badi.
+
+    CALL BADI lb_badi->get_api_key
+      EXPORTING
+        iv_space_key = space_key
+        iv_package   = package
+      RECEIVING
+        rv_result    = rv_result.
+
+  ENDMETHOD.
+
+
   METHOD get_base_uri.
 
     DATA:
@@ -465,7 +495,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
   METHOD get_space_uri.
 
-    uri = |{ get_base_uri( ) }{ zif_conflu_constants=>api_resources-spaces }/{ space_key }?expand=homepage|.
+    uri = fill_uri_api_key( |{ get_base_uri( ) }{ zif_conflu_constants=>api_resources-spaces }/{ space_key }?expand=homepage| ).
 
   ENDMETHOD.
 
@@ -479,7 +509,7 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
   METHOD get_labels_uri.
 
-    uri = |{ get_base_uri( ) }{ replace( val = zif_conflu_constants=>api_resources-labels sub = |<!PAGE!>| with = |{ page_id ZERO = NO }| ) }|.
+    uri = fill_uri_api_key( |{ get_base_uri( ) }{ replace( val = zif_conflu_constants=>api_resources-labels sub = |<!PAGE!>| with = |{ page_id ZERO = NO }| ) }| ).
 
   ENDMETHOD.
 
@@ -487,6 +517,24 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
   METHOD get_page_childs_uri.
 
     uri = |{ get_content_uri( ) }/{ parent ZERO = NO }/child/page|.
+
+  ENDMETHOD.
+
+
+  METHOD fill_uri_api_key.
+
+    result = uri.
+
+    DATA(api_key) = get_api_key( ).
+    IF api_key IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    SPLIT uri AT `?` INTO DATA(address) DATA(parameters).
+
+    DATA(fields) = cl_http_utility=>string_to_fields( string = parameters ).
+
+    result = |{ address }?{ cl_http_utility=>fields_to_string( VALUE #( BASE fields ( name = `apiKey` value = api_key ) ) ) }|.
 
   ENDMETHOD.
 
@@ -516,6 +564,8 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     cl_http_utility=>set_request_uri( request = http_client->request
                                       uri     = uri ).
+
+    http_client->request->set_version( if_http_entity=>co_protocol_version_1_1 ).
 
     DATA(request) = rest_client->if_rest_client~create_request_entity( ).
 
@@ -864,7 +914,9 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     DATA(uri_escaped) = escape( val = title format = cl_abap_format=>e_xss_url ).
 
-    DATA(rest_client) = create_rest_client( |{ get_content_uri( ) }?spaceKey={ space_key }&title={ uri_escaped }| ).
+    DATA(uri) = fill_uri_api_key( |{ get_content_uri( ) }?spaceKey={ space_key }&title={ uri_escaped }| ).
+
+    DATA(rest_client) = create_rest_client( uri ).
 
     DATA(info_json) = rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
 
@@ -879,7 +931,9 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
 
     DATA(uri_escaped) = escape( val = title format = cl_abap_format=>e_xss_url ).
 
-    DATA(rest_client) = create_rest_client( |{ get_page_childs_uri( parent ) }?expand=version| ).
+    DATA(uri) = fill_uri_api_key( |{ get_page_childs_uri( parent ) }?expand=version| ).
+
+    DATA(rest_client) = create_rest_client( uri ).
 
     DATA(info_json) = rest_client->if_rest_client~get_response_entity( )->get_string_data( ).
 
@@ -957,10 +1011,12 @@ CLASS zcl_conflu_obj_documentation IMPLEMENTATION.
     DATA(json) = /ui2/cl_json=>serialize( data        = content
                                           pretty_name = /ui2/cl_json=>pretty_mode-low_case ).
 
+    DATA(uri) = fill_uri_api_key( |{ COND #( WHEN page_id IS INITIAL
+                                                 THEN |{ get_content_uri( ) }|
+                                                 ELSE |{ get_content_uri( ) }/{ page_id ZERO = NO }| ) }| ).
+
     DATA(rest_client) = create_rest_client(
-                                uri        = COND #( WHEN page_id IS INITIAL
-                                                         THEN |{ get_content_uri( ) }|
-                                                         ELSE |{ get_content_uri( ) }/{ page_id ZERO = NO }| )
+                                uri        = uri
                                 data       = json
                                 api_method = COND #( WHEN page_id IS INITIAL
                                                          THEN zif_conflu_constants=>api_method-post
